@@ -16,13 +16,25 @@ def generate_xray_json(df, mappings, idioma_jira):
     testset_ids = {}
     current_id = 1
 
-    # Crear TestSets
+    resumen = {
+        "testsets": 0,
+        "tests": 0,
+        "marcas": set(),
+        "plataformas": set(),
+        "ambientes": set(),
+        "directorios": set(),
+        "labels": set()
+    }
+
+    # --- Test Sets ---
     for testset, group in df.groupby("Test Set"):
         etiquetas_raw = group["Etiquetas"].dropna().astype(str).tolist()
         etiquetas = (
             [e.strip() for e in etiquetas_raw[0].split(",") if e.strip()]
             if etiquetas_raw else []
         )
+
+        resumen["labels"].update(etiquetas)
 
         testset_ids[testset] = str(current_id)
 
@@ -35,7 +47,26 @@ def generate_xray_json(df, mappings, idioma_jira):
             }
         })
 
+        resumen["testsets"] += 1
         current_id += 1
+
+    # --- Tests ---
+    for _, row in df.iterrows():
+
+        resumen["tests"] += 1
+        resumen["directorios"].add(str(row["Directorio"]))
+
+        if pd.notna(row.get("Marca")):
+            resumen["marcas"].add(str(row["Marca"]))
+
+        if pd.notna(row.get("Plataforma")):
+            resumen["plataformas"].add(str(row["Plataforma"]))
+
+        if pd.notna(row.get("Ambiente")):
+            resumen["ambientes"].add(str(row["Ambiente"]))
+
+        etiquetas = [e.strip() for e in str(row["Etiquetas"]).split(",") if e.strip()]
+        resumen["labels"].update(etiquetas)
 
     # Crear Tests
     for _, row in df.iterrows():
@@ -75,4 +106,7 @@ def generate_xray_json(df, mappings, idioma_jira):
 
         output_json.append(test_entry)
 
-    return json.dumps(output_json, indent=2, ensure_ascii=False)
+    return {
+        "json": json.dumps(output_json, indent=2, ensure_ascii=False),
+        "resumen": resumen
+    }
