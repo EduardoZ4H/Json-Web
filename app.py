@@ -1,37 +1,86 @@
 import streamlit as st
-from controllers.auth_controller import handle_login
+import bcrypt
 from controllers.xray_controller import process_file
-from views.xray_view import show_main
 
-handle_login()
+# --- CONFIG ---
+st.set_page_config(page_title="Excel → Xray JSON", layout="centered")
 
-idioma_jira, uploaded_file = show_main()
+# --- LOGIN ---
+def handle_login():
+    st.title("🔐 Acceso restringido")
+    username = st.text_input("Usuario")
+    password = st.text_input("Contraseña", type="password")
+
+    try:
+        users = st.secrets["users"]
+    except Exception:
+        # Fallback local
+        users = {"admin": bcrypt.hashpw("1234".encode(), bcrypt.gensalt()).decode()}
+
+    if st.button("Ingresar"):
+        if username in users:
+            stored_hash = users[username].encode()
+            if bcrypt.checkpw(password.encode(), stored_hash):
+                st.session_state["logged_in"] = True
+                st.session_state["user"] = username
+                st.rerun()
+            else:
+                st.error("❌ Usuario o contraseña incorrectos")
+        else:
+            st.error("❌ Usuario o contraseña incorrectos")
+
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+if not st.session_state["logged_in"]:
+    handle_login()
+    st.stop()
+
+st.sidebar.success(f"👤 Usuario: {st.session_state['user']}")
+if st.sidebar.button("🚪 Cerrar sesión"):
+    st.session_state.clear()
+    st.rerun()
+
+# --- APP ---
+st.title("📄 Excel → Xray JSON (Jira / Xray)")
+
+idioma_jira = st.selectbox("🌎 Idioma de Jira", ["es", "en"])
+
+uploaded_file = st.file_uploader("📤 Sube el archivo Excel", type=["xlsx"])
 
 if uploaded_file:
-    result = process_file(uploaded_file, idioma_jira)
+    try:
+        result = process_file(uploaded_file, idioma_jira)
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
 
     json_str = result["json"]
     resumen = result["resumen"]
+    testset_details = result["testset_details"]
 
     st.success("✅ JSON generado correctamente")
 
-    st.subheader("📊 Resumen de generación")
+    # --- Tabla de Test Sets ---
+    import pandas as pd
+    data = []
+    for ts, info in testset_details.items():
+        data.append({
+            "Test Set": ts,
+            "# Casos": info["num_casos"],
+            "Marca": info["marca"],
+            "Etiquetas": ", ".join(info["etiquetas"]),
+            "Directorio": info["directorio"]
+        })
+    df_details = pd.DataFrame(data)
+    st.subheader("📋 Detalles de Test Sets")
+    st.dataframe(df_details)
 
-    col1, col2 = st.columns(2)
+    # --- Leyenda final ---
+    total_casos = sum([info["num_casos"] for info in testset_details.values()])
+    st.markdown(f"**Total de casos de prueba: {total_casos}**")
 
-    col1.metric("Test Sets", resumen["testsets"])
-    col1.metric("Tests", resumen["tests"])
-
-    col2.metric("Marcas", len(resumen["marcas"]))
-    col2.metric("Plataformas", len(resumen["plataformas"]))
-
-    with st.expander("🔍 Ver detalles"):
-        st.write("Marcas:", list(resumen["marcas"]))
-        st.write("Plataformas:", list(resumen["plataformas"]))
-        st.write("Ambientes:", list(resumen["ambientes"]))
-        st.write("Directorios:", list(resumen["directorios"]))
-        st.write("Labels:", list(resumen["labels"]))
-
+    # --- Botón de descarga JSON ---
     st.download_button(
         "⬇️ Descargar JSON",
         json_str,
