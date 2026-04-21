@@ -7,7 +7,7 @@ st.set_page_config(page_title="Excel → Xray JSON", layout="centered")
 
 # --- LOGIN ---
 def handle_login():
-    st.title("🔐 Acceso restringido")
+    st.title("Bienvenidos")
     username = st.text_input("Usuario")
     password = st.text_input("Contraseña", type="password")
 
@@ -25,9 +25,9 @@ def handle_login():
                 st.session_state["user"] = username
                 st.rerun()
             else:
-                st.error("❌ Usuario o contraseña incorrectos")
+                st.error("Usuario o contraseña incorrectos")
         else:
-            st.error("❌ Usuario o contraseña incorrectos")
+            st.error("Usuario o contraseña incorrectos")
 
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
@@ -36,17 +36,17 @@ if not st.session_state["logged_in"]:
     handle_login()
     st.stop()
 
-st.sidebar.success(f"👤 Usuario: {st.session_state['user']}")
-if st.sidebar.button("🚪 Cerrar sesión"):
+st.sidebar.success(f"Usuario: {st.session_state['user']}")
+if st.sidebar.button("Cerrar sesión"):
     st.session_state.clear()
     st.rerun()
 
 # --- APP ---
-st.title("📄 Excel → Xray JSON (Jira / Xray)")
+st.title("Convertir Excel a JSON (Jira / Xray)")
 
-idioma_jira = st.selectbox("🌎 Idioma de Jira", ["es", "en"])
+idioma_jira = st.selectbox("Idioma de Jira", ["es", "en"])
 
-uploaded_file = st.file_uploader("📤 Sube el archivo Excel", type=["xlsx"])
+uploaded_file = st.file_uploader("Sube el archivo Excel", type=["xlsx"])
 
 if uploaded_file:
     try:
@@ -59,7 +59,7 @@ if uploaded_file:
     resumen = result["resumen"]
     testset_details = result["testset_details"]
 
-    st.success("✅ JSON generado correctamente")
+    st.success("JSON generado correctamente")
 
     # --- Tabla de Test Sets ---
     import pandas as pd
@@ -73,7 +73,7 @@ if uploaded_file:
             "Directorio": info["directorio"]
         })
     df_details = pd.DataFrame(data)
-    st.subheader("📋 Detalles de Test Sets")
+    st.subheader("Detalles de Test Sets")
     st.dataframe(df_details)
 
     # --- Leyenda final ---
@@ -82,7 +82,7 @@ if uploaded_file:
 
     # --- Botón de descarga JSON ---
     st.download_button(
-        "⬇️ Descargar JSON",
+        "Descargar JSON",
         json_str,
         file_name="xray.json",
         mime="application/json"
